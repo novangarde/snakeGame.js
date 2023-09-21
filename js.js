@@ -79,24 +79,58 @@ const map = {
       for (let col = 0; col < colsCount; col++) {
         const td = document.createElement("td");
         td.classList.add("cell");
+
+        this.cells[`x${col}_y${row}`] = td;
+
         tr.appendChild(td);
       }
     }
   },
+
+  render(snalePointsArray, foodPoint) {
+    
+  },
 };
 
-const snake = {};
+const snake = {
+  body: null,
+  direction: null,
 
-const food = {};
+  init(startBody, startDirection) {
+    this.body = startBody;
+    this.direction = startDirection;
+  },
 
-const status = {};
+  getBody() {
+    return this.body;
+  },
+};
+
+const food = {
+  x: null,
+  y: null,
+
+  getCoordinates() {
+    return {
+      x: this.x,
+      y: this.y,
+    };
+  },
+
+  setCoordinates(point) {
+    this.x = point.x;
+    this.y = point.y;
+  },
+};
+
+const gameStatus = {};
 
 const game = {
   config,
   map,
   snake,
   food,
-  status,
+  gameStatus,
 
   init(userSettings) {
     this.config.init(userSettings);
@@ -108,6 +142,53 @@ const game = {
       return;
     }
     this.map.init(this.config.getRowsCount(), this.config.getColsCount());
+    this.setEventHandlers();
+    this.reset();
+  },
+
+  setEventHandlers() {
+    // TODO сделать обработчики.
+  },
+
+  reset() {
+    this.stop();
+    this.snake.init(this.getStartSnakeBody(), "up");
+    this.food.setCoordinates(this.getRandomFreeCoordinates());
+    this.map.render(this.snake.getBody(), this.food.getCoordinates());
+  },
+
+  play() {},
+
+  stop() {},
+
+  finish() {},
+
+  getStartSnakeBody() {
+    return [
+      {
+        x: Math.floor(this.config.getColsCount() / 2),
+        y: Math.floor(this.config.getRowsCount() / 2),
+      },
+    ];
+  },
+
+  getRandomFreeCoordinates() {
+    const exclude = [this.food.getCoordinates(), ...this.snake.getBody()];
+
+    while (true) {
+      const rndPoint = {
+        x: Math.floor(Math.random() * this.config.getColsCount()),
+        y: Math.floor(Math.random() * this.config.getRowsCount()),
+      };
+
+      if (
+        !exclude.some(
+          (exPoint) => rndPoint.x === exPoint.x && rndPoint.y === exPoint.y
+        )
+      ) {
+        return rndPoint;
+      }
+    }
   },
 };
 
