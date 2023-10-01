@@ -215,6 +215,10 @@ const gameStatus = {
   isStopped() {
     return this.condition === "stopped";
   },
+
+  isFinished() {
+    return this.condition === "finished";
+  },
 };
 
 const game = {
@@ -276,6 +280,7 @@ const game = {
 
   tickHandler() {
     if (!this.canMakeStep()) {
+      this.gameStatus.setFinished();
       return this.finish();
     }
 
@@ -308,11 +313,13 @@ const game = {
       this.stop();
     } else if (this.gameStatus.isStopped()) {
       this.play();
+    } else if (this.gameStatus.isFinished) {
+      this.newGameClickHandler();
     }
   },
 
   newGameClickHandler() {
-     config.init();
+    location.reload();
   },
 
   keyDownHandler(event) {
