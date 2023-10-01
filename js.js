@@ -58,6 +58,14 @@ const config = {
   getColsCount() {
     return this.settings.colsCount;
   },
+
+  getWinFoodCount() {
+    return this.settings.winFoodCount;
+  },
+
+  getSpeed() {
+    return this.settings.speed;
+  },
 };
 
 const map = {
@@ -87,22 +95,80 @@ const map = {
     }
   },
 
-  render(snalePointsArray, foodPoint) {
-    
+  render(snakePointsArray, foodPoint) {
+    for (const cell of this.usedCells) {
+      cell.className = "cell";
+    }
+
+    this.usedCells = [];
+
+    snakePointsArray.forEach((point, idx) => {
+      const snakeCell = this.cells[`x${point.x}_y${point.y}`];
+      snakeCell.classList.add(idx === 0 ? "snakeHead" : "snakeBody");
+      this.usedCells.push(snakeCell);
+    });
+
+    const foodCell = this.cells[`x${foodPoint.x}_y${foodPoint.y}`];
+    foodCell.classList.add("food");
+    this.usedCells.push(foodCell);
   },
 };
 
 const snake = {
   body: null,
   direction: null,
+  lastStepDirection: null,
 
   init(startBody, startDirection) {
     this.body = startBody;
     this.direction = startDirection;
+    this.lastStepDirection = startDirection;
+  },
+
+  getLastStepDirection() {
+    return this.lastStepDirection;
   },
 
   getBody() {
     return this.body;
+  },
+
+  getNextStepPoint() {
+    const headPoint = this.body[0];
+
+    switch (this.direction) {
+      case "up":
+        return { x: headPoint.x, y: headPoint.y - 1 };
+      case "right":
+        return { x: headPoint.x + 1, y: headPoint.y };
+      case "left":
+        return { x: headPoint.x - 1, y: headPoint.y };
+      case "down":
+        return { x: headPoint.x, y: headPoint.y + 1 };
+    }
+  },
+
+  isOnPoint(point) {
+    return this.body.some(
+      (snakePoint) => snakePoint.x === point.x && snakePoint.y === point.y
+    );
+  },
+
+  makeStep() {
+    this.lastStepDirection = this.direction;
+    this.body.unshift(this.getNextStepPoint());
+    this.body.pop();
+  },
+
+  setDirection(direction) {
+    this.direction = direction;
+  },
+
+  growUp() {
+    const lastBodyIdx = this.body.length - 1;
+    const lastBodyPoint = this.body[lastBodyIdx];
+    const lastBodyPointClone = Object.assign({}, lastBodyPoint);
+    this.body.push(lastBodyPointClone);
   },
 };
 
@@ -121,9 +187,35 @@ const food = {
     this.x = point.x;
     this.y = point.y;
   },
+
+  isOnPoint(point) {
+    return this.x === point.x && this.y === point.y;
+  },
 };
 
-const gameStatus = {};
+const gameStatus = {
+  condition: null,
+
+  setPlaying() {
+    this.condition = "playing";
+  },
+
+  setStopped() {
+    this.condition = "stopped";
+  },
+
+  setFinished() {
+    this.condition = "finished";
+  },
+
+  isPlaying() {
+    return this.condition === "playing";
+  },
+
+  isStopped() {
+    return this.condition === "stopped";
+  },
+};
 
 const game = {
   config,
@@ -131,6 +223,7 @@ const game = {
   snake,
   food,
   gameStatus,
+  tickInterval: null,
 
   init(userSettings) {
     this.config.init(userSettings);
@@ -147,21 +240,121 @@ const game = {
   },
 
   setEventHandlers() {
-    // TODO сделать обработчики.
+    document
+      .getElementById("playButton")
+      .addEventListener("click", () => this.playClickHandler());
+    document
+      .getElementById("newGameButton")
+      .addEventListener("click", () => this.newGameClickHandler());
+    document.addEventListener("keydown", (event) => this.keyDownHandler(event));
   },
 
   reset() {
     this.stop();
     this.snake.init(this.getStartSnakeBody(), "up");
     this.food.setCoordinates(this.getRandomFreeCoordinates());
+    this.render();
+  },
+
+  play() {
+    this.gameStatus.setPlaying();
+    this.tickInterval = setInterval(() => this.tickHandler(), 1000 / config.getSpeed());
+    this.setPlayButton("Стоп");
+  },
+
+  stop() {
+    this.gameStatus.setStopped();
+    clearInterval(this.tickInterval);
+    this.setPlayButton("Старт");
+  },
+
+  finish() {
+    this.gameStatus.setFinished;
+    clearInterval(this.tickInterval);
+    this.setPlayButton("Игра закончена", true);
+  },
+
+  tickHandler() {
+    if (!this.canMakeStep()) {
+      return this.finish();
+    }
+
+    if (this.food.isOnPoint(this.snake.getNextStepPoint())) {
+      this.snake.growUp();
+      this.food.setCoordinates(this.getRandomFreeCoordinates());
+      if (this.isGameWin()) {
+        this.finish();
+      }
+    }
+
+    this.snake.makeStep();
+    this.render();
+  },
+
+  render() {
     this.map.render(this.snake.getBody(), this.food.getCoordinates());
   },
 
-  play() {},
+  setPlayButton(textContent, isDisabled = false) {
+    const playButton = document.getElementById("playButton");
+    playButton.textContent = textContent;
+    isDisabled
+      ? playButton.classList.add("disabled")
+      : playButton.classList.remove("disabled");
+  },
 
-  stop() {},
+  playClickHandler() {
+    if (this.gameStatus.isPlaying()) {
+      this.stop();
+    } else if (this.gameStatus.isStopped()) {
+      this.play();
+    }
+  },
 
-  finish() {},
+  newGameClickHandler() {
+     config.init();
+  },
+
+  keyDownHandler(event) {
+    if (!this.gameStatus.isPlaying()) {
+      return;
+    }
+
+    const direction = this.getDirectionByCode(event.code);
+    if (this.canSetDirection(direction)) {
+      this.snake.setDirection(direction);
+    }
+  },
+
+  getDirectionByCode(code) {
+    switch (code) {
+      case "KeyW":
+      case "ArrowUp":
+        return "up";
+      case "KeyD":
+      case "ArrowRight":
+        return "right";
+      case "KeyA":
+      case "ArrowLeft":
+        return "left";
+      case "KeyS":
+      case "ArrowDown":
+        return "down";
+      default:
+        return "";
+    }
+  },
+
+  canSetDirection(direction) {
+    const lastStepDirection = this.snake.getLastStepDirection();
+
+    return (
+      (direction === "up" && lastStepDirection !== "down") ||
+      (direction === "right" && lastStepDirection !== "left") ||
+      (direction === "down" && lastStepDirection !== "up") ||
+      (direction === "left" && lastStepDirection !== "right")
+    );
+  },
 
   getStartSnakeBody() {
     return [
@@ -190,6 +383,22 @@ const game = {
       }
     }
   },
+
+  canMakeStep() {
+    const nextStepPoint = this.snake.getNextStepPoint();
+
+    return (
+      !this.snake.isOnPoint(nextStepPoint) &&
+      nextStepPoint.x < this.config.getColsCount() &&
+      nextStepPoint.y < this.config.getRowsCount() &&
+      nextStepPoint.x >= 0 &&
+      nextStepPoint.y >= 0
+    );
+  },
+
+  isGameWon() {
+    return this.snake.getBody().length > this.config.getWinFoodCount();
+  },
 };
 
-game.init({ speed: 8 });
+game.init({ speed: 10 });
