@@ -263,19 +263,19 @@ const game = {
   play() {
     this.gameStatus.setPlaying();
     this.tickInterval = setInterval(() => this.tickHandler(), 1000 / config.getSpeed());
-    this.setPlayButton("Стоп");
+    this.setPlayButton("Stop");
   },
 
   stop() {
     this.gameStatus.setStopped();
     clearInterval(this.tickInterval);
-    this.setPlayButton("Старт");
+    this.setPlayButton("Start");
   },
 
   finish() {
     this.gameStatus.setFinished;
     clearInterval(this.tickInterval);
-    this.setPlayButton("Игра закончена", true);
+    this.setPlayButton("Game over", true);
   },
 
   tickHandler() {
